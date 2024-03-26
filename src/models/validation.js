@@ -4,11 +4,15 @@ export const userRegistrationSchema = z.object({
 	username: z.string(),
 	email: z.string().email(),
 	password: z.string().min(12),
-	firstName: z.string(),
-	lastName: z.string(),
+	name: z.string(),
+	lastName: z.string().optional(),
 })
 
 export const userLoginSchema = z.object({
-	username: z.string(),
+	email: z.string().email(),
+	password: z.string().min(12),
+})
+
+export const secretPassSchema = z.object({
 	password: z.string().min(12),
 })

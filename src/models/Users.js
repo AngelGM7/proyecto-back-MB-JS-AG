@@ -34,11 +34,11 @@ export const UsersModel = sequelize.define('users', {
 		defaultValue: 'USER',
 	},
 	public_key: {
-		type: DataTypes.STRING,
-		allowNull: false,
+		type: DataTypes.STRING(4096),
+		allowNull: true,
 	},
 	private_key: {
-		type: DataTypes.STRING,
-		allowNull: false,
+		type: DataTypes.STRING(4096),
+		allowNull: true,
 	},
 })

@@ -1,56 +1,69 @@
 import {
-	generateKeyPairSync,
-	publicEncrypt,
-	privateEncrypt,
 	randomBytes,
-	privateDecrypt,
+	createCipheriv,
 	createDecipheriv,
+	scryptSync,
+	createDiffieHellman,
 } from 'crypto'
+const algorithm = 'aes-256-cbc'
+export function generateDHKeys(size) {
+	// Paso 1: Generar los parámetros Diffie-Hellman
+	const dh = createDiffieHellman(size) // Selecciona el tamaño de la clave según tus necesidades
 
-// Generate RSA keys for sender and recipient
-const senderKeys = generateKeyPairSync('rsa', { modulusLength: 2048 })
-const recipientKeys = generateKeyPairSync('rsa', { modulusLength: 2048 })
-
-// Function to encrypt a message
-function encryptMessage(message, recipientPublicKey) {
-	const bufferMessage = Buffer.from(message, 'utf8')
-	const encryptedMessage = publicEncrypt(recipientPublicKey, bufferMessage)
-	return encryptedMessage.toString('base64')
+	// Paso 2: Generar una clave pública y privada para tu lado
+	const publicKey = dh.generateKeys('hex') // Genera tu clave pública en hexadecimal
+	const privateKey = dh.getPrivateKey('hex') // Genera tu clave privada en hexadecimal
+	return { publicKey, privateKey }
 }
 
-// Function to encrypt a symmetric key
-function encryptSymmetricKey(symmetricKey, senderPrivateKey) {
-	const encryptedSymmetricKey = privateEncrypt(senderPrivateKey, symmetricKey)
-	return encryptedSymmetricKey.toString('base64')
+// Función para cifrar un mensaje con AES
+export function encryptMessage(message, key) {
+	const iv = randomBytes(16)
+	const cipher = createCipheriv(algorithm, Buffer.from(key, 'hex'), iv)
+	let encrypted = cipher.update(message, 'utf8', 'hex')
+	encrypted += cipher.final('hex')
+	return { iv: iv.toString('hex'), encryptedData: encrypted }
 }
 
-// Example usage
-const message = 'Hello'
-const symmetricKey = randomBytes(32) // Example symmetric key
+// Función para descifrar un mensaje con AES
+export function decryptMessage(encryptedData, iv, key) {
+	const decipher = createDecipheriv(
+		algorithm,
+		Buffer.from(key, 'hex'),
+		Buffer.from(iv, 'hex')
+	)
+	let decrypted = decipher.update(encryptedData, 'hex', 'utf8')
+	decrypted += decipher.final('utf8')
+	return decrypted
+}
 
-// Encrypt the message with the recipient's public key
-const encryptedMessage = encryptMessage(message, recipientKeys.publicKey)
+export function encryptPrivateKey(privateKey, password) {
+	const key = scryptSync(password, 'salt', 32) // Genera una clave a partir de la contraseña
+	const iv = randomBytes(16) // Genera un vector de inicialización
 
-// Encrypt the symmetric key with the sender's private key
-const encryptedSymmetricKey = encryptSymmetricKey(
-	symmetricKey,
-	senderKeys.privateKey
-)
+	const cipher = createCipheriv(algorithm, key, iv)
+	let encryptedPrivateKey = cipher.update(privateKey, 'utf8', 'hex')
+	encryptedPrivateKey += cipher.final('hex')
 
-console.log('Encrypted Message:', encryptedMessage)
-console.log('Encrypted Symmetric Key:', encryptedSymmetricKey)
+	return iv.toString('hex') + ':' + encryptedPrivateKey
+}
 
-// Decrypt the symmetric key with the sender's private key
-const decryptedSymmetricKey = privateDecrypt(
-	senderKeys.privateKey,
-	Buffer.from(encryptedSymmetricKey, 'base64')
-)
+// Función para descifrar la clave privada
+export function decryptPrivateKey(encryptedPrivateKey, password) {
+	const key = scryptSync(password, 'salt', 32) // Genera una clave a partir de la contraseña
+	const [ivHex, encryptedKey] = encryptedPrivateKey.split(':')
+	const iv = Buffer.from(ivHex, 'hex')
 
-// Decrypt the message with the symmetric key
-const decryptedMessage = createDecipheriv(
-	'aes-256-cbc',
-	decryptedSymmetricKey,
-	Buffer.alloc(16, 0)
-).update(Buffer.from(encryptedMessage, 'base64'), 'base64', 'utf8')
+	const decipher = createDecipheriv(algorithm, key, iv)
+	let decryptedPrivateKey = decipher.update(encryptedKey, 'hex', 'utf8')
+	decryptedPrivateKey += decipher.final('utf8')
 
-console.log('Decrypted Message:', decryptedMessage)
+	return decryptedPrivateKey
+}
+export function comparePasswords(password, dbPassword) {
+	const [salt, key] = dbPassword.split(':')
+
+	const hashedBuffer = scryptSync(password, salt, 64)
+	const keyBuffer = Buffer.from(key, 'hex')
+	return timingSafeEqual(hashedBuffer, keyBuffer)
+}
