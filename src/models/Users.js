@@ -1,44 +1,48 @@
 import { sequelize } from '../database/database.js'
 import { DataTypes } from 'sequelize'
 
-export const UsersModel = sequelize.define('users', {
-	id: {
-		type: DataTypes.STRING,
-		primaryKey: true,
-		allowNull: false,
+export const UsersModel = sequelize.define(
+	'users',
+	{
+		id: {
+			type: DataTypes.STRING,
+			primaryKey: true,
+			allowNull: false,
+		},
+		username: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			unique: true,
+		},
+		email: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			unique: true,
+		},
+		password: {
+			type: DataTypes.STRING,
+			allowNull: false,
+		},
+		name: {
+			type: DataTypes.STRING,
+			allowNull: false,
+		},
+		lastName: {
+			type: DataTypes.STRING,
+		},
+		role: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: 'USER',
+		},
+		public_key: {
+			type: DataTypes.TEXT,
+			allowNull: true,
+		},
+		private_key: {
+			type: DataTypes.TEXT,
+			allowNull: true,
+		},
 	},
-	username: {
-		type: DataTypes.STRING,
-		allowNull: false,
-		unique: true,
-	},
-	email: {
-		type: DataTypes.STRING,
-		allowNull: false,
-		unique: true,
-	},
-	password: {
-		type: DataTypes.STRING,
-		allowNull: false,
-	},
-	name: {
-		type: DataTypes.STRING,
-		allowNull: false,
-	},
-	lastName: {
-		type: DataTypes.STRING,
-	},
-	role: {
-		type: DataTypes.STRING,
-		allowNull: false,
-		defaultValue: 'USER',
-	},
-	public_key: {
-		type: DataTypes.STRING(4096),
-		allowNull: true,
-	},
-	private_key: {
-		type: DataTypes.STRING(4096),
-		allowNull: true,
-	},
-})
+	{ timestamps: false }
+)

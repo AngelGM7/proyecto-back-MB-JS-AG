@@ -4,11 +4,19 @@ import {
 	createDecipheriv,
 	scryptSync,
 	createDiffieHellman,
+	timingSafeEqual,
+	hkdf,
+	diffieHellman,
+	KeyObject,
+	createSecretKey,
 } from 'crypto'
+const { PRIME, GENERATOR } = process.env
+const prime = Buffer.from(PRIME, 'hex')
+const generator = Buffer.from(GENERATOR, 'hex')
 const algorithm = 'aes-256-cbc'
-export function generateDHKeys(size) {
+export function generateDHKeys() {
 	// Paso 1: Generar los parámetros Diffie-Hellman
-	const dh = createDiffieHellman(size) // Selecciona el tamaño de la clave según tus necesidades
+	const dh = createDiffieHellman(prime, generator) // Selecciona el tamaño de la clave según tus necesidades
 
 	// Paso 2: Generar una clave pública y privada para tu lado
 	const publicKey = dh.generateKeys('hex') // Genera tu clave pública en hexadecimal
@@ -22,7 +30,7 @@ export function encryptMessage(message, key) {
 	const cipher = createCipheriv(algorithm, Buffer.from(key, 'hex'), iv)
 	let encrypted = cipher.update(message, 'utf8', 'hex')
 	encrypted += cipher.final('hex')
-	return { iv: iv.toString('hex'), encryptedData: encrypted }
+	return `${iv.toString('hex')}:${encrypted}`
 }
 
 // Función para descifrar un mensaje con AES
@@ -66,4 +74,56 @@ export function comparePasswords(password, dbPassword) {
 	const hashedBuffer = scryptSync(password, salt, 64)
 	const keyBuffer = Buffer.from(key, 'hex')
 	return timingSafeEqual(hashedBuffer, keyBuffer)
+}
+
+export function derivedKey(key, salt, info, keyLength) {
+	const ikm = Buffer.from(key, 'hex')
+	const bufferSalt = Buffer.from(salt, 'hex')
+	const bufferInfo = Buffer.from(info, 'hex')
+	return new Promise((resolve, reject) => {
+		hkdf(
+			'sha512',
+			ikm,
+			bufferSalt,
+			bufferInfo,
+			keyLength,
+			(err, derivedKey) => {
+				if (err) {
+					reject(err)
+				} else {
+					resolve(Buffer.from(derivedKey).toString('hex'))
+				}
+			}
+		)
+	})
+}
+
+export async function getEncryptedMessage({
+	message,
+	privateKey,
+	publicKey,
+	info,
+}) {
+	const dh = createDiffieHellman(prime, generator)
+	dh.setPrivateKey(privateKey, 'hex')
+	const dhKey = dh.computeSecret(publicKey, 'hex', 'hex')
+	const dvKey = await derivedKey(dhKey, 'salt', info, 32)
+	const encryptedMessage = encryptMessage(message, dvKey)
+	return encryptedMessage
+}
+
+export async function getDecryptedMessage({
+	message,
+	privateKey,
+	publicKey,
+	info,
+}) {
+	const dh = createDiffieHellman(prime, generator)
+	dh.setPrivateKey(privateKey, 'hex')
+	const dhKey = dh.computeSecret(publicKey, 'hex', 'hex')
+	const dvKey = await derivedKey(dhKey, 'salt', info, 32)
+
+	const [iv, em] = message.split(':')
+	const decryptedMessage = decryptMessage(em, iv, dvKey)
+	return decryptedMessage
 }
