@@ -26,10 +26,37 @@ export const verifyToken = (req, res, next) => {
 		// Attach the decoded token to the request object
 		req.user = decodedToken
 		// Proceed to the next middleware
+
 		next()
 	} catch (error) {
 		// If the token is invalid, return an error
-		return res.status(401).json({ message: 'Invalid or expired token' })
+		return res
+			.status(401)
+			.json({ message: 'Invalid or expired token', valid: false })
+	}
+}
+
+export const verifyTokenSocket = (socket, next) => {
+	// Extract the token from the Authorization header
+	const token = socket.handshake.headers.authorization.split(' ')[1]
+
+	// If no token is provided, return an error
+	if (!token) {
+		return next(new Error('Missing header'))
+	}
+
+	// Secret key used to sign the JWT token
+
+	try {
+		// Verify the token
+		const decodedToken = jwt.verify(token, SECRET)
+		// Attach the decoded token to the request object
+		socket.user = decodedToken
+		// Proceed to the next middleware
+		next()
+	} catch (error) {
+		// If the token is invalid, return an error
+		return next(new Error('Authentication error'))
 	}
 }
 

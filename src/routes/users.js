@@ -16,9 +16,7 @@ import {
 	encryptPrivateKey,
 	generateDHKeys,
 } from '../lib/encrypt.js'
-import { Op } from 'sequelize'
 const router = Router()
-
 router.post(
 	'/register',
 	validateData(userRegistrationSchema),
@@ -79,7 +77,7 @@ router.post('/login', validateData(userLoginSchema), async (req, res) => {
 				role: user.role,
 				username: user.username,
 			})
-			res.json({ token, message: 'Logged successfully' })
+			res.json({ token, message: 'Logged successfully', valid: true })
 		} else {
 			res.json({ message: 'Invalid password' })
 		}
@@ -165,5 +163,9 @@ router.get(
 		}
 	}
 )
+
+router.post('/validate-token', verifyToken, (req, res) => {
+	res.status(200).send({ valid: true })
+})
 
 export default router

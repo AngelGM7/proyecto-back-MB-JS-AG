@@ -7,6 +7,7 @@ import { UsersModel } from '../models/Users.js'
 import { nanoid } from 'nanoid'
 import { getDecryptedMessage, getEncryptedMessage } from '../lib/encrypt.js'
 import { format } from 'date-fns'
+import { sendMessageToUser } from '../lib/socket.js'
 const router = Router()
 
 router.get('/', verifyToken, async (req, res) => {
@@ -58,6 +59,7 @@ router.post(
 			}
 			await MessagesModel.create(newMessage)
 			res.json({ message: 'message created' })
+			sendMessageToUser({ userId: receiverId, data: { sender: req.user } })
 		} catch (e) {
 			console.error(e)
 			res.status(500).json({ message: 'Internal server error' })
